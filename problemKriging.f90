@@ -87,22 +87,22 @@ program problemKrigingBeam
   ! Bending moment (Aleatory)
 
   X(3)  = 40.0e6 !N.m
-  X_L(3)= 40.0e6!N.m
-  X_U(3)= 40.0e6!N.m
+  X_L(3)= 40.0e6 !N.m
+  X_U(3)= 40.0e6 !N.m
 
   ! Shear force  (Aleatory)
 
-  X(4)  = 150.0e3!N
-  X_L(4)= 150.0e3!N
-  X_U(4)= 150.0e3!N
+  X(4)  = 150.0e3 !N
+  X_L(4)= 150.0e3 !N
+  X_U(4)= 150.0e3 !N
 
 
   !===================================================================
-  !(2)     Integer Settings and store into IDAT (check for size above)
+  !(2)Integer Settings and store into IDAT (check for size above)
   !===================================================================
 
   probtype(:)=1
-  kprob=3
+  kprob=4
 
   IDAT(1)=kprob
   IDAT(2)=0
@@ -126,44 +126,40 @@ program problemKrigingBeam
   !(4)     Constraints
   !====================
 
-  do i=1,M-1
+  do i=1,M
      G_L(i)=-infbound
      G_U(i)=0.d0
   end do
-
-  G_L(3)=0.0
-  G_U(3)=0.0
-
+  
+  !  G_L(3)=0.0
+  !  G_U(3)=0.0
+  
   !
   ! Equality constraint
   !
-
-!  G_L(M)=0.0d0
-!  G_U(M)=0.0d0
-
+  
+  !  G_L(M)=0.0d0
+  !  G_U(M)=0.0d0
+  
   !===========================================================
   !(5)    Other constants to be passed to the surrogate call
   !===========================================================
-
-!  pi=4.0*atan(1.0) ! constant for later use
-
+  
+  !  pi=4.0*atan(1.0) ! constant for later use
+  
   !Problem data and other constants
-
+  
   dat(1000+1)=10.0 !Sigma_allow
   dat(1000+2)=2.0  !Tau_allow
-  dat(1000+3)=1.0    !Factor of safety
-
-!  dat(1000+4)=
-!  dat(1000+5)=
-
-  dat(1000+20)=77       ! filenum for PC
+  dat(1000+3)=1.0  !Factor of safety
+  dat(1000+20)=77  !filenum for PC
 
 
   !=================================================================
   !
   !     First create a handle for the Ipopt problem (and read the options
   !     file)
-  !
+  !=================================================================
 
   IPROBLEM = IPCREATE(N, X_L, X_U, M, G_L, G_U, NELE_JAC, NELE_HESS,IDX_STY, EV_F, EV_G, EV_GRAD_F, EV_JAC_G, EV_HESS)
   if (IPROBLEM.eq.0) then
@@ -307,8 +303,6 @@ subroutine EV_F(N, X, NEW_X, F, IDAT, DAT, IERR)
      print*,''
      write(*,'(4x,a,3F13.4)') '>>Objective:',fmeantmp,fvartmp,fmeantmp+fvartmp
      write(*,'(4x,a,F13.4)') '>>Coeff of variance :',sqrt(fvartmp)/fmeantmp
-
- !    print*,'fmeanprime,fvarprime:',fmeanprimetmp(1:N),fvarprimetmp(1:N)
   end if
 
 !  stop
@@ -445,8 +439,6 @@ subroutine EV_GRAD_F(N, X, NEW_X, GRAD, IDAT, DAT, IERR)
      if (x(i).ne.DAT(2*N+2+i)) samex=.false. 
   end do
   
-  
-  
   if (samex) then
 
      !         if (id_proc.eq.0) print *,'Samex in obj',X
@@ -519,6 +511,7 @@ subroutine EV_JAC_G(TASK, N, X, NEW_X, M, NZ, ACON, AVAR, A,IDAT, DAT, IERR)
   integer IERR, kprob
   logical samex
   integer::myflag(10) 
+
   if( TASK.eq.0 ) then 
 
      !
