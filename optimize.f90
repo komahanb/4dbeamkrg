@@ -14,6 +14,7 @@ subroutine optimize(ndvar,D,ndvart,fobj,dfdD,low,up,gtol,maximize,outputscreen,f
   double precision :: wa(2*mmax*ndvar+4*ndvar+12*mmax*mmax+12*mmax)
 
 
+
   maxfev=100
   Nouter=100
 
@@ -34,8 +35,8 @@ subroutine optimize(ndvar,D,ndvart,fobj,dfdD,low,up,gtol,maximize,outputscreen,f
   !     We suppress both code-supplied stopping tests because the
   !        user is providing his own stopping criteria.
 
-  factr=1.d+7
-  pgtol=1.d+7
+  factr=1.0d+3
+  pgtol=gtol
 
   !     We specify the number m of limited memory corrections stored.  
 

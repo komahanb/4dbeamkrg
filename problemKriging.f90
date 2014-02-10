@@ -1,5 +1,5 @@
 program problemKrigingBeam
-
+  use dimopt
   use dimkrig,only:probtype,id_proc,fcnt,fgcnt,fghcnt
 
   implicit none
@@ -81,7 +81,7 @@ program problemKrigingBeam
   do i=1,N-2
      X(i)   = 300.0  
      X_L(i) = 100.0 
-     X_U(i) = 600.0
+     X_U(i) = 500.0
   end do
 
   ! Bending moment (Aleatory)
@@ -102,7 +102,7 @@ program problemKrigingBeam
   !===================================================================
 
   probtype(:)=1
-  kprob=4
+  kprob=0
 
   IDAT(1)=kprob
   IDAT(2)=0
@@ -115,7 +115,7 @@ program problemKrigingBeam
   sigmax(1)=10.0
   sigmax(2)=10.0
 
-  sigmax(3)=400.0e3
+  sigmax(3)=40.0d3
   sigmax(4)=1500.0
 
   do i=1,n
@@ -131,15 +131,12 @@ program problemKrigingBeam
      G_U(i)=0.d0
   end do
   
-  !  G_L(3)=0.0
-  !  G_U(3)=0.0
-  
   !
   ! Equality constraint
   !
   
-  !  G_L(M)=0.0d0
-  !  G_U(M)=0.0d0
+  G_L(M)=0.0d0
+  G_U(M)=0.0d0
   
   !===========================================================
   !(5)    Other constants to be passed to the surrogate call
@@ -151,7 +148,7 @@ program problemKrigingBeam
   
   dat(1000+1)=10.0 !Sigma_allow
   dat(1000+2)=2.0  !Tau_allow
-  dat(1000+3)=1.0  !Factor of safety
+  dat(1000+3)=1.00  !Factor of safety
   dat(1000+20)=77  !filenum for PC
 
 
@@ -172,6 +169,8 @@ program problemKrigingBeam
   if (id_proc.eq.0) open(unit=76,file='Opt.his',form='formatted',status='replace')
 
   if (id_proc.eq.0) open(unit=86,file='beta.his',form='formatted',status='replace')
+
+ if (id_proc.eq.0) open(unit=37,file='dv.his',form='formatted',status='replace')
 
   IERR = IPOPENOUTPUTFILE(IPROBLEM, 'IPOPT.OUT', 5)
   if (IERR.ne.0 ) then
@@ -241,6 +240,8 @@ program problemKrigingBeam
   call IPFREE(IPROBLEM)
   if (id_proc.eq.0) close(76)
   if (id_proc.eq.0) close(86)
+  if (id_proc.eq.0) close(37)
+
   call stop_all
   !
 9990 continue
@@ -258,6 +259,7 @@ end program problemKrigingBeam
 
 subroutine EV_F(N, X, NEW_X, F, IDAT, DAT, IERR)
   use dimkrig,only:probtype,id_proc,fcnt,fgcnt,fghcnt
+  use dimopt
 
   implicit none
   integer N, NEW_X,I
@@ -280,13 +282,23 @@ subroutine EV_F(N, X, NEW_X, F, IDAT, DAT, IERR)
 
   !---- MEAN and VARIANCE OF worst OBJECTIVE FUNCTION
 
-  call Krigingestimate(N-2,N,x,sigmax,23,0,DAT(1001:1020),20,20,20,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
-
   if (IDAT(2).eq.1) then ! Deterministic with PC
+
+     call CalcExact(X,N,fmeantmp,fmeanprimetmp,0,DAT(1001:1020))
      fvartmp=0.0d0
      fvarprimetmp=0.0d0
+     
+  else
+
+     call Krigingestimate(N-2,N,x,sigmax,23,0,DAT(1001:1020),10,10,10,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
+     if (fvartmp.lt.0.0) fvartmp=0.0
+
   end if
 
+
+  do i=1,n
+     data(i)=x(i)
+  end do
 
   !---- COMBINED OBJECTIVE FUNCTION
   F=fmeantmp+fvartmp
@@ -351,14 +363,18 @@ subroutine EV_G(N, X, NEW_X, M, G, IDAT, DAT, IERR)
   do i=1,M
 
      !---- MEAN OF INEQUALITY CONSTRAINT i
-     !call Krigingestimate(ndimin,ndimint,xavgin,xstdin,fctin,fctindxin,DATIN,nptsin,statin,probtypeIN,fmeanout,fvarout,fmeanprimeout,fvarprimeout)
-!print*,sigmax
-
-     call Krigingestimate(N-2,N,x,sigmax,23,i,DAT(1001:1020),20,20,20,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
-
+     
      if (IDAT(2).eq.1) then
+
+        call CalcExact(X,N,fmeantmp,fmeanprimetmp,i,DAT(1001:1020))
         fvartmp=0.0
         fvarprimetmp(:)=0.0
+
+     else
+
+        call Krigingestimate(N-2,N,x,sigmax,23,i,DAT(1001:1020),10,10,10,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
+        if (fvartmp.lt.0.0) fvartmp=0.0
+
      end if
 
 !     if(id_proc.eq.0)   print*,"me,st:",fmeantmp,fvartmp
@@ -470,12 +486,17 @@ subroutine EV_GRAD_F(N, X, NEW_X, GRAD, IDAT, DAT, IERR)
 
      !---- MEAN and VARIANCE OF worst OBJECTIVE FUNCTION
 
-     call Krigingestimate(N-2,N,x,sigmax,23,0,DAT(1001:1020),20,20,20,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
-
 
      if (IDAT(2).eq.1) then
+
+        call CalcExact(X,N,fmeantmp,fmeanprimetmp,0,DAT(1001:1020))
         fvartmp=0.0
         fvarprimetmp(:)=0.0
+
+     else
+
+     call Krigingestimate(N-2,N,x,sigmax,23,0,DAT(1001:1020),10,10,10,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
+     if (fvartmp.lt.0.0) fvartmp=0.0
      end if
 
      !---- OBJECTIVE FUNCTION gradient and x value
@@ -600,14 +621,17 @@ subroutine EV_JAC_G(TASK, N, X, NEW_X, M, NZ, ACON, AVAR, A,IDAT, DAT, IERR)
         do i=1,M
 
            !---- MEAN OF INEQUALITY CONSTRAINT i
-
-           call Krigingestimate(N-2,N,x,sigmax,23,i,DAT(1001:1020),20,20,20,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
-
-           if (fvartmp.lt.0.0) fvartmp=0.0
-
+           
            if (IDAT(2).eq.1) then
+
+              call CalcExact(X,N,fmeantmp,fmeanprimetmp,i,DAT(1001:1020))
               fvartmp=0.0
               fvarprimetmp(:)=0.0
+           else
+
+              call Krigingestimate(N-2,N,x,sigmax,23,i,DAT(1001:1020),10,10,10,0,probtype,myflag,fmeantmp,fvartmp,fmeanprimetmp,fvarprimetmp)
+              if (fvartmp.lt.0.0) fvartmp=0.0
+
            end if
 
            do j=1,N
@@ -725,13 +749,14 @@ end subroutine EV_HESS
 ! =============================================================================
 !
 subroutine ITER_CB(ALG_MODE, ITER_COUNT,OBJVAL, INF_PR, INF_DU,MU, DNORM, REGU_SIZE, ALPHA_DU, ALPHA_PR, LS_TRIAL, IDAT,DAT, ISTOP)
+  use dimopt
   use dimkrig,only:probtype,id_proc,fcnt,fgcnt,fghcnt
 
   implicit none
   integer ALG_MODE, ITER_COUNT, LS_TRIAL
   double precision OBJVAL, INF_PR, INF_DU, MU, DNORM, REGU_SIZE
   double precision ALPHA_DU, ALPHA_PR
-  double precision DAT(*)
+  double precision DAT(*),tol
   integer IDAT(*)
   integer ISTOP
 
@@ -744,11 +769,13 @@ subroutine ITER_CB(ALG_MODE, ITER_COUNT,OBJVAL, INF_PR, INF_DU,MU, DNORM, REGU_S
         write(*,*) 
         write(*,*) 'iter    objective      ||grad||        inf_pr          inf_du         lg(mu)'
         write(86,*) 'iter    objective    betag1    betag2    betag3'
+        write(37,*) 'iter    X1    X2        X3    X4'
      end if
 
      write(*,'(i5,5e15.7)') ITER_COUNT,OBJVAL,DNORM,INF_PR,INF_DU,MU
      write(76,'(i5,5e15.7,3i8)') ITER_COUNT,OBJVAL,DNORM,INF_PR,INF_DU,MU,fcnt,fgcnt,fghcnt
      write(86,'(i5,4e15.7)') ITER_COUNT,OBJVAL,DAT(1020+1),DAT(1020+2),DAT(1020+3)
+     write(37,'(i5,5e15.7)') ITER_COUNT,OBJVAL,DATA(1),DATA(2),DATA(3),DATA(4)
 
   end if
 
@@ -756,10 +783,18 @@ subroutine ITER_CB(ALG_MODE, ITER_COUNT,OBJVAL, INF_PR, INF_DU,MU, DNORM, REGU_S
   !     And set ISTOP to 1 if you want Ipopt to stop now.  Below is just a
   !     simple example.
   !
-
-  if (ITER_COUNT .gt. 1 .and. DNORM.le.1D-06) ISTOP = 1
-
   
+  if (ITER_COUNT .gt. 1 ) then
+
+     open(unit=59,file='dnorm.inp',status='old')
+     read(59,*) tol
+     close(59)
+
+     if (DNORM.le.tol) ISTOP = 1  
+
+  end if
+
+
   return
 end subroutine ITER_CB
 
