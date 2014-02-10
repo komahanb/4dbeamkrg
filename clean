@@ -1,0 +1,1 @@
+rm *.o *~ *.his *.OUT \#* HIST* fort.* tecp*

@@ -1,20 +1,40 @@
-  subroutine CalcstuffBFGS(X,ndvart,fobj,dfdD,fct)
-    use dimkrig,only:fctindx
-    implicit none
+subroutine CalcstuffBFGS(X,ndvart,fobj,dfdD,fct)
+  use dimkrig,only:fctindx
+  implicit none
 
-    integer  :: ndvart,fct
-    double precision :: X(ndvart),fobj,dfdD(ndvart),x3
-    double precision ::  rho, L, sigmay, pi, p, E, Fs  
-    
-    fctindx=fct
+  integer  :: ndvart,fct
+  double precision :: X(ndvart),fobj,dfdD(ndvart),x3
+  double precision ::  rho, L, sigmay, pi, p, E, Fs  
 
-    call my_calcf(x,ndvart,fobj)
+  fctindx=fct
 
-    call my_calcdf(x,ndvart,dfdD)   
+  call my_calcf(x,ndvart,fobj)
 
-    return
-  end subroutine CalcstuffBFGS
-  
+  call my_calcdf(x,ndvart,dfdD)   
+
+  return
+end subroutine CalcstuffBFGS
+!++++++++++++++++++++++++++++++++++
+
+subroutine CalcExact(X,ndvart,fobj,dfdD,fct,DATA)
+  use dimkrig,only:fctindx,DAT,mainprog
+  implicit none
+
+  real*8::DATA(20)
+  integer  :: ndvart,fct
+  double precision :: X(ndvart),fobj,dfdD(ndvart),x3
+  double precision ::  rho, L, sigmay, pi, p, E, Fs  
+
+  fctindx=fct
+  mainprog=.false.
+  DAT(1:20)=DATA(1:20)
+
+  call my_calcf(x,ndvart,fobj)
+  call my_calcdf(x,ndvart,dfdD)
+
+  return
+end subroutine CalcExact
+
   !+++++++++++++++++++++++++++++++++
 
   subroutine my_calcf(x,ndimt,f)
@@ -60,7 +80,7 @@
 
     else if (fctindx.eq.3) then
 
-       f= d*FS/(2.0*b) - 1.0
+       f= d/(2.0*b) - 1.0
 
     else 
 
@@ -121,8 +141,8 @@
 
     else if (fctindx.eq.3) then
 
-       df(1) = -1.0*d*FS/(2.0*b**2)
-       df(2) = 1.0*FS/(2.0*b) 
+       df(1) = -1.0*d/(2.0*b**2)
+       df(2) = 1.0/(2.0*b) 
     else
 
        print*, 'Wrong function index for this test case',fctindx
