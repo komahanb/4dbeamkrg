@@ -135,8 +135,8 @@ program problemKrigingBeam
   ! Equality constraint
   !
   
-  G_L(M)=0.0d0
-  G_U(M)=0.0d0
+!  G_L(M)=0.0d0
+!  G_U(M)=0.0d0
   
   !===========================================================
   !(5)    Other constants to be passed to the surrogate call
